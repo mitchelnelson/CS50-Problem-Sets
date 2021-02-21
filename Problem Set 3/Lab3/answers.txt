@@ -1,0 +1,11 @@
+sort1 uses: Bubble Sort
+
+How do you know?: Bubble sort had better runtime, albeit marginal, compared to selection sort. The big Omega for bubble sort is only n, which likely accounts for this slight increase in speed.
+
+sort2 uses: Merge Sort
+
+How do you know?: Constantly outperforms sort1 and sort2 in terms of runtime. Merge sort is logarithmic in nature, and big O for merge sort is O(n log n). This is much better than O(log n^2) for the others.
+
+sort3 uses: Selection Sort
+
+How do you know?: Selection sort's big O and big Omega are both n^2, resulting in poor runtime. Selection sort generally underperformed in comparison to bubble sort, except for random values.
