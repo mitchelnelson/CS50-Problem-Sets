@@ -1,0 +1,42 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Home
+{% endblock %}
+
+{% block main %}
+    <section class="stock-table">
+        <table class=" table table-bordered table-striped">
+            <tr>
+                <th>Symbol</th>
+                <th>Name</th>
+                <th>Shares</th>
+                <th>Price</th>
+                <th>TOTAL</th>
+            </tr>
+            {% for row in rows %}
+            <tr>
+                <td>{{row["symbol"]}}</td>
+                <td>{{row["company"]}}</td>
+                <td>{{row["stock_qty"]}}</td>
+                <td>{{row["stock_price"] | usd }}</td>
+                <td>{{row["stock_total"] | usd }}</td>
+            </tr>
+            {% endfor %}
+            <tr>
+                <td>CASH</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td>{{cash[0]["cash"] | usd }}</td>
+            </tr>
+            <tr>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td class="font-weight-bold">{{grandTotal | usd}}</td>
+            </tr>
+        </table>
+    </section>
+{% endblock %}
