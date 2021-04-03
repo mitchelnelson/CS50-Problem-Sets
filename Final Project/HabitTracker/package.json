@@ -9,6 +9,8 @@
   "author": "Mitchel Nelson",
   "license": "ISC",
   "dependencies": {
-    "mongoose": "^5.12.3"
+    "inquirer": "^8.0.0",
+    "mongoose": "^5.12.3",
+    "readline-sync": "^1.4.10"
   }
 }

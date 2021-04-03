@@ -1,3 +1,9 @@
+// Libraries
+const stdin = process.stdin;
+const stdout = process.stdout;
+const stderr = process.stderr;
+const rl = require('readline-sync');
+
 const { Habit } = require('./model');
 const mongoose = require('mongoose');
 
@@ -13,13 +19,27 @@ mongoose.connect('mongodb://localhost:27017/HabitTracker', {
 const db = mongoose.connection;
 db.on('error', console.error.bind(console, 'connection error:'));
 db.once('open', function () {
-	console.log('Connection established.');
+	console.log('');
 });
 
-const habit = new Habit({
-	name: 'AFP',
-	startDate: new Date(),
-	currentStreak: 58
-});
+// Prompt user for what they would like to do:
+// Create a new habit
+// Read a habit
+// Update a habit
+// Delete a habit
 
-habit.save();
+// Prompt user:
+
+const questions = [
+	'Create a new habit.',
+	'View existing habits.',
+	'Edit a habit.',
+	'Delete a habit.'
+];
+
+const greet = rl.question(`Select an option to get started:\n
+1. ${questions[0]}
+2. ${questions[1]}
+3. ${questions[2]}
+4. ${questions[3]}\n
+Answer: `);
