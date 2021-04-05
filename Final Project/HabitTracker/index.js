@@ -22,14 +22,9 @@ db.once('open', function () {
 	console.log('');
 });
 
-// Prompt user for what they would like to do:
-// Create a new habit
-// Read a habit
-// Update a habit
-// Delete a habit
+//////////////////////////////////////////////////////////////////////////////////
 
-// Prompt user:
-
+// Variable declarations
 const questions = [
 	'Create a new habit.',
 	'View existing habits.',
@@ -37,9 +32,42 @@ const questions = [
 	'Delete a habit.'
 ];
 
-const greet = rl.question(`Select an option to get started:\n
+qPrompt = `Enter a number to get started:\n
 1. ${questions[0]}
 2. ${questions[1]}
 3. ${questions[2]}
 4. ${questions[3]}\n
-Answer: `);
+Answer: `;
+
+// Clear the console to start the application on a blank canvas.
+console.clear();
+
+// Prompt user to make a decision:
+
+function greet () {
+	let answer = rl.question(qPrompt);
+
+	switch (parseInt(answer)) {
+		case 1:
+			return displayAnswer(0);
+		case 2:
+			return displayAnswer(1);
+		case 3:
+			return displayAnswer(2);
+		case 4:
+			return displayAnswer(3);
+		default:
+			// Remove the previous printed output, so only the error message shows.
+			console.clear();
+			console.log('\x1b[91m%s\x1b[0m', 'You must enter a valid number!');
+			greet();
+	}
+}
+
+function displayAnswer (index) {
+	console.clear();
+	stdout.write(qPrompt);
+	console.log('\x1b[36m%s\x1b[0m', `${questions[index]}`);
+}
+
+greet();
