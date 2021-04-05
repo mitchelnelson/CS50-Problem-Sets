@@ -10,6 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "inquirer": "^8.0.0",
+    "keypress": "^0.2.1",
     "mongoose": "^5.12.3",
     "readline-sync": "^1.4.10"
   }

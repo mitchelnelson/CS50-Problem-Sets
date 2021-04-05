@@ -2,7 +2,11 @@
 const stdin = process.stdin;
 const stdout = process.stdout;
 const stderr = process.stderr;
+
 const rl = require('readline-sync');
+
+const keypress = require('keypress');
+keypress(stdin);
 
 const { Habit } = require('./model');
 const mongoose = require('mongoose');
@@ -32,6 +36,7 @@ const questions = [
 	'Delete a habit.'
 ];
 
+// Greeting prompt
 qPrompt = `Enter a number to get started:\n
 1. ${questions[0]}
 2. ${questions[1]}
@@ -45,29 +50,63 @@ console.clear();
 // Prompt user to make a decision:
 
 function greet () {
-	let answer = rl.question(qPrompt);
+	answer = rl.keyIn(qPrompt);
 
 	switch (parseInt(answer)) {
 		case 1:
-			return displayAnswer(0);
 		case 2:
-			return displayAnswer(1);
 		case 3:
-			return displayAnswer(2);
 		case 4:
-			return displayAnswer(3);
+			return newMenu(answer);
 		default:
 			// Remove the previous printed output, so only the error message shows.
 			console.clear();
-			console.log('\x1b[91m%s\x1b[0m', 'You must enter a valid number!');
+			console.log('\x1b[91mYou must enter a valid number!\x1b[0m');
 			greet();
 	}
 }
 
-function displayAnswer (index) {
+function newMenu (answer) {
 	console.clear();
-	stdout.write(qPrompt);
-	console.log('\x1b[36m%s\x1b[0m', `${questions[index]}`);
+	displayAnswer(answer);
+	executeOption(answer);
 }
 
+function displayAnswer (a) {
+	stdout.write('\033[0;34m' + questions[a - 1] + '\033[m\n');
+}
+
+function executeOption (opt) {
+	switch (parseInt(opt)) {
+		case 1:
+			createHabit();
+	}
+}
+
+async function createHabit () {
+	let entry = rl.question('Enter habit: ');
+
+	if (entry) {
+		const newHabit = new Habit({
+			name: entry,
+			startDate: Date.now(),
+			currentStreak: 0
+		});
+		await newHabit.save().then(() => {
+			console.clear();
+			console.log(`Habit added! (${newHabit.name})`);
+			console.log('Click \033[1;33mbackspace\033[m to go to main menu.');
+		});
+		process.stdin.on('keypress', function (ch, key) {
+			if (key && key.name == 'backspace') {
+				console.clear();
+				greet();
+			}
+		});
+
+		process.stdin.setRawMode(true);
+		process.stdin.resume();
+	}
+	return;
+}
 greet();
