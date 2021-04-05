@@ -36,13 +36,16 @@ const questions = [
 	'Delete a habit.'
 ];
 
+// const blinker = '\033[31;1;4mOption\033[m';
+const underliner = '\033[1;4mEnter a number to get started:\033[m';
+
 // Greeting prompt
-qPrompt = `Enter a number to get started:\n
+qPrompt = `${underliner}\n
 1. ${questions[0]}
 2. ${questions[1]}
 3. ${questions[2]}
-4. ${questions[3]}\n
-Answer: `;
+4. ${questions[3]}
+5. Exit app.\n`;
 
 // Clear the console to start the application on a blank canvas.
 console.clear();
@@ -58,6 +61,8 @@ function greet () {
 		case 3:
 		case 4:
 			return newMenu(answer);
+		case 5:
+			return goodbye();
 		default:
 			// Remove the previous printed output, so only the error message shows.
 			console.clear();
@@ -86,7 +91,11 @@ function executeOption (opt) {
 async function createHabit () {
 	let entry = rl.question('Enter habit: ');
 
-	if (entry) {
+	if (entry == '') {
+		console.clear();
+		return greet();
+	}
+	else if (entry) {
 		const newHabit = new Habit({
 			name: entry,
 			startDate: Date.now(),
@@ -103,10 +112,19 @@ async function createHabit () {
 				greet();
 			}
 		});
-
 		process.stdin.setRawMode(true);
 		process.stdin.resume();
 	}
 	return;
 }
+
+function goodbye () {
+	console.clear();
+	console.log(qPrompt);
+	stdout.write('Goodbye!');
+	setTimeout(() => {
+		process.exit();
+	}, 1000);
+}
+
 greet();
