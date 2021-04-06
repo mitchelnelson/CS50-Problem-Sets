@@ -2,7 +2,6 @@
 const stdin = process.stdin;
 const stdout = process.stdout;
 const stderr = process.stderr;
-const util = require('util');
 
 const rl = require('readline-sync');
 
@@ -83,34 +82,39 @@ function greet () {
 async function createHabit (option) {
 	displayAnswer(option);
 
-	let entry = rl.question('Enter habit: ');
+	let confirm = rl.keyIn(
+		' (Press \u001b[1my\033[m to create a habit, or \u001b[1;4mspacebar\033[m to go back.)\n',
+		{
+			defaultInput: '',
+			limit: ['y', 'Y', ' '],
+			hideEchoBack: true,
+			mask: ''
+		}
+	);
 
-	if (entry == '') {
-		console.clear();
-		return greet();
-	}
-	else if (entry) {
+	if (confirm === 'y') {
+		let entry = rl.question('Enter habit: ');
 		const newHabit = new Habit({
 			name: entry,
 			startDate: Date.now(),
 			currentStreak: 0
 		});
 		await newHabit.save().then(() => {
-			console.clear();
-			console.log(`Habit added! (${newHabit.name})`);
-			// console.log('Click \033[1;33mbackspace\033[m to go to main menu.');
+			stdout.write(`Habit added!`);
+			return spacebarMainMenu();
 		});
 	}
-	return mainMenu();
+	else return greet();
 }
 
 async function readHabits (option) {
 	displayAnswer(option);
+	stdout.write(' (Hit \u001b[1;4mspacebar\033[m to go back)\n');
+
 	let results = await Habit.find();
 
 	logHabitData(results);
-
-	return mainMenu();
+	return spacebarMainMenu();
 }
 
 function logHabitData (results) {
@@ -128,17 +132,13 @@ function logHabitData (results) {
 
 function displayAnswer (a) {
 	console.clear();
-	console.log('\033[0;34m' + questions[a - 1] + '\033[m');
+	stdout.write('\033[0;31m' + questions[a - 1] + '\033[m');
 	return;
 }
 
-function mainMenu () {
-	let backButton = rl.keyIn('Hit b to go back', { limit: 'b' });
-
-	if (backButton) {
-		console.clear();
-		return greet();
-	}
+function spacebarMainMenu () {
+	let mainMenu = rl.keyIn('', { limit: ' ' });
+	if (mainMenu) return greet();
 }
 
 function goodbye () {

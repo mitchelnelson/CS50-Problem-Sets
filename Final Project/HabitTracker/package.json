@@ -9,6 +9,7 @@
   "author": "Mitchel Nelson",
   "license": "ISC",
   "dependencies": {
+    "hide-terminal-cursor": "^0.0.1",
     "inquirer": "^8.0.0",
     "keypress": "^0.2.1",
     "mongoose": "^5.12.3",
