@@ -37,7 +37,7 @@ const questions = [
 ];
 
 // const blinker = '\033[31;1;4mOption\033[m';
-const underliner = '\033[1;4mEnter a number to get started:\033[m';
+const underliner = '\033[1;4mType a selection from below to get started:\033[m';
 
 // Greeting prompt
 qPrompt = `${underliner}\n
@@ -45,7 +45,7 @@ qPrompt = `${underliner}\n
 2. ${questions[1]}
 3. ${questions[2]}
 4. ${questions[3]}
-5. Exit app.\n`;
+q. Exit app.\n`;
 
 // Clear the console to start the application on a blank canvas.
 console.clear();
@@ -53,7 +53,11 @@ console.clear();
 // Prompt user to make a decision:
 
 function greet () {
-	answer = rl.keyIn(qPrompt);
+	let answer = rl.keyIn(qPrompt);
+
+	if (answer.toLowerCase() === 'q') {
+		answer = '5';
+	}
 
 	switch (parseInt(answer)) {
 		case 1:
@@ -85,6 +89,8 @@ function executeOption (opt) {
 	switch (parseInt(opt)) {
 		case 1:
 			createHabit();
+		case 2:
+			readHabits();
 	}
 }
 
@@ -116,6 +122,13 @@ async function createHabit () {
 		process.stdin.resume();
 	}
 	return;
+}
+
+async function readHabits () {
+	let results = await Habit.find();
+	for (let i = 0; i < results.length; i++) {
+		console.log(results[i]['name']);
+	}
 }
 
 function goodbye () {
