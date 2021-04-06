@@ -46,40 +46,29 @@ qPrompt = `${underliner}\n
 4. ${questions[3]}
 q. Exit app.\n`;
 
-// Toggler for if user has viewed habits already to prevent duplication
-let isViewed = false;
-
 // Prompt user to make a decision:
 
 function greet () {
 	clearConsoleAndScrollBuffer();
-	let answer = rl.keyIn(qPrompt);
+	let answer = rl.keyIn(qPrompt, { limit: ['1', '2', '3', '4', 'q'] });
 
-	if (answer.toLowerCase() === 'q') {
-		answer = '5';
-	}
-
-	switch (parseInt(answer)) {
-		case 1:
+	switch (answer) {
+		case '1':
 			clearConsoleAndScrollBuffer();
-			return createHabit(answer);
-		case 2:
+			return createHabits(answer);
+		case '2':
 			clearConsoleAndScrollBuffer();
 			return readHabits(answer);
-		// case 3:
-		// case 4:
-		case 5:
+		case '3':
+			clearConsoleAndScrollBuffer();
+			return updateHabits(answer);
+		// case '4':
+		case 'q':
 			return goodbye();
-		default:
-			// Remove the previous printed output, so only the error message shows.
-			console.clear();
-			console.log('\x1b[91mYou must enter a valid number!\x1b[0m');
-			greet();
 	}
-	return;
 }
 
-async function createHabit (option) {
+async function createHabits (option) {
 	displayAnswer(option);
 
 	let confirm = rl.keyIn(
@@ -116,6 +105,8 @@ async function readHabits (option) {
 	logHabitData(results);
 	return spacebarMainMenu();
 }
+
+async function updateHabits (option) {}
 
 function logHabitData (results) {
 	for (let i = 0; i < results.length; i++) {
