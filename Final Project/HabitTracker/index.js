@@ -68,6 +68,8 @@ function greet () {
 	}
 }
 
+// MAIN FUNCTIONS
+
 async function createHabits (option) {
 	displayAnswer(option);
 
@@ -81,7 +83,7 @@ async function createHabits (option) {
 		}
 	);
 
-	if (confirm === 'y') {
+	if (confirm === 'y' || confirm === 'Y') {
 		let entry = rl.question('Enter habit: ');
 		const newHabit = new Habit({
 			name: entry,
@@ -106,7 +108,47 @@ async function readHabits (option) {
 	return spacebarMainMenu();
 }
 
-async function updateHabits (option) {}
+async function updateHabits (option) {
+	displayAnswer(option);
+
+	let confirm = rl.keyIn(
+		' (Press \u001b[1me\033[m to edit a habit, or \u001b[1;4mspacebar\033[m to go back.)',
+		{
+			defaultInput: '',
+			limit: ['e', 'E', ' '],
+			hideEchoBack: true,
+			mask: ''
+		}
+	);
+
+	const habitArray = [];
+	const indexArray = [];
+
+	if (confirm === 'e' || confirm === 'E') {
+		let data = await Habit.find();
+		addToArray(data, habitArray, indexArray);
+
+		console.log('Which habit?');
+		let chosenHabit = rl.keyInSelect(habitArray, '', {
+			hideEchoBack: true,
+			mask: ''
+		});
+
+		if (chosenHabit === -1) {
+			return greet();
+		}
+		else {
+			return openHabitEditor(habitArray[chosenHabit]);
+		}
+	}
+	if (confirm === ' ') return greet();
+}
+
+async function deleteHabits () {
+	// TODO
+}
+
+// R
 
 function logHabitData (results) {
 	for (let i = 0; i < results.length; i++) {
@@ -121,10 +163,52 @@ function logHabitData (results) {
 	return;
 }
 
-function displayAnswer (a) {
-	console.clear();
-	stdout.write('\033[0;31m' + questions[a - 1] + '\033[m');
+// U
+
+function addToArray (data, arr, iArr) {
+	for (let i = 0; i < data.length; i++) {
+		arr.push(data[i]['name']);
+		iArr.push(i + 1);
+	}
 	return;
+}
+
+function printArray (arr) {
+	for (let i = 0; i < arr.length; i++) {
+		console.log(`${i + 1}. ${arr[i]}`);
+	}
+	return '';
+}
+
+async function openHabitEditor (habit) {
+	clearConsoleAndScrollBuffer();
+	console.log('\033[0;31m%s\n', questions[2]);
+	let results = await Habit.find({ name: `${habit}` });
+	console.log(results);
+
+	console.log('\033[34mHabit: \033[m' + results[0]['name']);
+	console.log('\033[33mStart Date: \033[m' + results[0]['startDate']);
+
+	let editField = rl.keyInSelect(['Habit', 'Start Date', 'Both'], '');
+
+	switch (editField) {
+		case 0:
+			let editedHabit = rl.question('Edit habit: ');
+			await Habit.findOneAndUpdate(
+				{ name: results[0]['name'] },
+				{ name: editedHabit }
+			);
+			console.log('Habit name edited!');
+		case 1:
+			let editedDate = rl.question('Edit start date (MM/DD/YYYY): ');
+		// Do regex
+	}
+}
+
+// ...
+
+function displayAnswer (a) {
+	stdout.write('\033[0;31m' + questions[a - 1] + '\033[m');
 }
 
 function spacebarMainMenu () {
@@ -145,5 +229,7 @@ function clearConsoleAndScrollBuffer () {
 	process.stdout.write('\u001b[3J\u001b[1J');
 	console.clear();
 }
+
+// Invoke
 
 greet();
