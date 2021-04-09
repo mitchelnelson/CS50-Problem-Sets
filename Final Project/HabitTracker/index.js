@@ -29,6 +29,21 @@ db.once('open', function () {
 //////////////////////////////////////////////////////////////////////////////////
 
 // Variable declarations
+const months = [
+	'January',
+	'February',
+	'March',
+	'April',
+	'May',
+	'June',
+	'July',
+	'August',
+	'September',
+	'October',
+	'November',
+	'December'
+];
+
 const questions = [
 	'Create a new habit.',
 	'View existing habits.',
@@ -88,7 +103,7 @@ async function createHabits (option) {
 		let entry = rl.question('Enter habit: ');
 		const newHabit = new Habit({
 			name: entry,
-			startDate: Date.now(),
+			startDate: parseDate(Date.now()),
 			currentStreak: 0
 		});
 		await newHabit.save().then(() => {
@@ -184,9 +199,10 @@ async function openHabitEditor (habit) {
 
 	console.log('\033[34mHabit: \033[m' + results[0]['name']);
 	console.log('\033[33mStart Date: \033[m' + results[0]['startDate']);
+	console.log('\033[35mCurrent Streak: \033[m' + results[0]['currentStreak']);
 
 	let editField = rl.keyInSelect(
-		['Edit Habit', 'Edit Start Date', 'Edit All'],
+		['Edit Habit', 'Edit Start Date', 'Edit Current Streak'],
 		''
 	);
 	console.log(editField);
@@ -200,7 +216,9 @@ async function openHabitEditor (habit) {
 		case 1:
 			habitDateChanger(results);
 			break;
-		// Do regex
+		case 2:
+			habitStreakChanger(results);
+			break;
 	}
 }
 
@@ -234,6 +252,7 @@ async function habitDateChanger (data) {
 	let editedHabit = rl.question('\033[33mStart Date (MM/DD/YYYY): \033[m');
 
 	if (validateDate(editedHabit)) {
+		let newStartDate = parseDate(editedHabit);
 	}
 	else {
 		console.log('\033[91mInvalid format. Try again.\033[m');
@@ -243,14 +262,45 @@ async function habitDateChanger (data) {
 	}
 }
 
+async function habitStreakChanger (data) {
+	clearConsoleAndScrollBuffer();
+	console.log('\033[0;92m' + questions[2] + '\n');
+	console.log('\033[34mHabit: \033[m' + data[0]['name']);
+	console.log('\033[33mStart Date: \033[m' + data[0]['startDate']);
+
+	let editedHabit = parseInt(rl.question('\033[35mCurrent Streak: \033[m'));
+	let validateChecker = validateStreak(editedHabit, data[0]['startDate']);
+
+	if (validateStreak(editedHabit)) {
+		// TODO
+	}
+}
+
 function returnToEdit () {
 	clearConsoleAndScrollBuffer();
 	return updateHabits(3);
 }
 
-function validateDate (testdate) {
+function validateDate (testDate) {
 	const dateRegex = /^(0[1-9]|1[0-2])\/(0[1-9]|1\d|2\d|3[01])\/(19|20)\d{2}$/;
-	return dateRegex.test(testdate);
+	return dateRegex.test(testDate);
+}
+
+function validateStreak (testStreak, originDate) {
+	// const days = originDate.get
+	const streakRegex = /^[1-9]\d*$/;
+	let isSyntaticStreak = streakRegex.test(testStreak);
+
+	if (isSyntaticStreak) {
+	}
+}
+
+function parseDate (enteredDate) {
+	let parsedDate = new Date(enteredDate);
+	let year = parsedDate.getFullYear();
+	let month = months[parsedDate.getMonth()];
+	let day = parsedDate.getDate();
+	return `${month} ${day}, ${year}`;
 }
 
 // ...
