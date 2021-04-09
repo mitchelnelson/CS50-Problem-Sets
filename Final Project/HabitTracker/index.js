@@ -36,7 +36,8 @@ const questions = [
 	'Delete a habit.'
 ];
 
-const underliner = '\033[1;4mType a selection from below to get started:\033[m';
+const underliner =
+	'\033[1;4;93mType a selection from below to get started:\033[m';
 
 // Greeting prompt
 qPrompt = `${underliner}\n
@@ -125,10 +126,13 @@ async function updateHabits (option) {
 	const indexArray = [];
 
 	if (confirm === 'e' || confirm === 'E') {
+		clearConsoleAndScrollBuffer();
+		displayAnswer(3);
+		console.log('');
 		let data = await Habit.find();
 		addToArray(data, habitArray, indexArray);
 
-		console.log('Which habit?');
+		console.log('\u001b[1mWhich habit?\033[m');
 		let chosenHabit = rl.keyInSelect(habitArray, '', {
 			hideEchoBack: true,
 			mask: ''
@@ -173,42 +177,86 @@ function addToArray (data, arr, iArr) {
 	return;
 }
 
-function printArray (arr) {
-	for (let i = 0; i < arr.length; i++) {
-		console.log(`${i + 1}. ${arr[i]}`);
-	}
-	return '';
-}
-
 async function openHabitEditor (habit) {
 	clearConsoleAndScrollBuffer();
-	console.log('\033[0;31m%s\n', questions[2]);
+	console.log('\033[0;92m%s\n', questions[2]);
 	let results = await Habit.find({ name: `${habit}` });
-	console.log(results);
 
 	console.log('\033[34mHabit: \033[m' + results[0]['name']);
 	console.log('\033[33mStart Date: \033[m' + results[0]['startDate']);
 
-	let editField = rl.keyInSelect(['Habit', 'Start Date', 'Both'], '');
+	let editField = rl.keyInSelect(
+		['Edit Habit', 'Edit Start Date', 'Edit All'],
+		''
+	);
+	console.log(editField);
 
 	switch (editField) {
+		case -1:
+			return returnToEdit();
 		case 0:
-			let editedHabit = rl.question('Edit habit: ');
-			await Habit.findOneAndUpdate(
-				{ name: results[0]['name'] },
-				{ name: editedHabit }
-			);
-			console.log('Habit name edited!');
+			habitNameChanger(results);
+			break;
 		case 1:
-			let editedDate = rl.question('Edit start date (MM/DD/YYYY): ');
+			habitDateChanger(results);
+			break;
 		// Do regex
 	}
+}
+
+async function habitNameChanger (data) {
+	clearConsoleAndScrollBuffer();
+	console.log('\033[0;92m' + questions[2] + '\n');
+
+	let escapedQuery =
+		'\033[34mHabit\033[m ' +
+		'(previously was: \u001b[1m' +
+		data[0]['name'] +
+		'\033[m): ';
+	let editedHabit = rl.question(escapedQuery);
+
+	await Habit.findOneAndUpdate(
+		{ name: data[0]['name'] },
+		{ name: editedHabit }
+	);
+
+	console.log('Habit name edited!');
+	setTimeout(() => {
+		return returnToEdit();
+	}, 1000);
+}
+
+async function habitDateChanger (data) {
+	clearConsoleAndScrollBuffer();
+	console.log('\033[0;92m' + questions[2] + '\n');
+	console.log('\033[34mHabit: \033[m' + data[0]['name']);
+
+	let editedHabit = rl.question('\033[33mStart Date (MM/DD/YYYY): \033[m');
+
+	if (validateDate(editedHabit)) {
+	}
+	else {
+		console.log('\033[91mInvalid format. Try again.\033[m');
+		setTimeout(() => {
+			return habitDateChanger(data);
+		}, 1000);
+	}
+}
+
+function returnToEdit () {
+	clearConsoleAndScrollBuffer();
+	return updateHabits(3);
+}
+
+function validateDate (testdate) {
+	const dateRegex = /^(0[1-9]|1[0-2])\/(0[1-9]|1\d|2\d|3[01])\/(19|20)\d{2}$/;
+	return dateRegex.test(testdate);
 }
 
 // ...
 
 function displayAnswer (a) {
-	stdout.write('\033[0;31m' + questions[a - 1] + '\033[m');
+	stdout.write('\033[0;92m' + questions[a - 1] + '\033[m');
 }
 
 function spacebarMainMenu () {
