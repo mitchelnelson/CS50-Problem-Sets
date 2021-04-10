@@ -5,6 +5,7 @@ const Schema = mongoose.Schema;
 const habitSchema = new Schema({
 	name: String,
 	startDate: String,
+	daysSinceStart: Number,
 	currentStreak: Number
 });
 

@@ -29,26 +29,26 @@ db.once('open', function () {
 //////////////////////////////////////////////////////////////////////////////////
 
 // Variable declarations
-const months = [
-	'January',
-	'February',
-	'March',
-	'April',
-	'May',
-	'June',
-	'July',
-	'August',
-	'September',
-	'October',
-	'November',
-	'December'
-];
+const months = {
+	0: 'January',
+	1: 'February',
+	2: 'March',
+	3: 'April',
+	4: 'May',
+	5: 'June',
+	6: 'July',
+	7: 'August',
+	8: 'September',
+	9: 'October',
+	10: 'November',
+	11: 'December'
+};
 
 const questions = [
-	'Create a new habit.',
+	'Daily check-in',
+	'Create a habit',
 	'View existing habits.',
-	'Edit a habit.',
-	'Delete a habit.'
+	'Edit/Delete habits.'
 ];
 
 const underliner =
@@ -71,11 +71,14 @@ function greet () {
 	switch (answer) {
 		case '1':
 			clearConsoleAndScrollBuffer();
-			return createHabits(answer);
+			return greet();
 		case '2':
 			clearConsoleAndScrollBuffer();
-			return readHabits(answer);
+			return createHabits(answer);
 		case '3':
+			clearConsoleAndScrollBuffer();
+			return readHabits(answer);
+		case '4':
 			clearConsoleAndScrollBuffer();
 			return updateHabits(answer);
 		// case '4':
@@ -103,7 +106,8 @@ async function createHabits (option) {
 		let entry = rl.question('Enter habit: ');
 		const newHabit = new Habit({
 			name: entry,
-			startDate: parseDate(Date.now()),
+			startDate: customDate(Date.now()),
+			daysSinceStart: 0,
 			currentStreak: 0
 		});
 		await newHabit.save().then(() => {
@@ -137,12 +141,11 @@ async function updateHabits (option) {
 		}
 	);
 
-	const habitArray = [];
-	const indexArray = [];
-
 	if (confirm === 'e' || confirm === 'E') {
+		const habitArray = [];
+		const indexArray = [];
 		clearConsoleAndScrollBuffer();
-		displayAnswer(3);
+		displayAnswer(4);
 		console.log('');
 		let data = await Habit.find();
 		addToArray(data, habitArray, indexArray);
@@ -167,12 +170,16 @@ async function deleteHabits () {
 	// TODO
 }
 
-// R
+// Read-specific functions
 
 function logHabitData (results) {
 	for (let i = 0; i < results.length; i++) {
 		console.log('\033[34mHabit: \033[m' + results[i]['name']);
 		console.log('\033[33mStart Date: \033[m' + results[i]['startDate']);
+		console.log(
+			'\u001b[38;5;30mDays Since Start Date: \033[m' +
+				results[i]['daysSinceStart']
+		);
 		console.log(
 			'\033[35mCurrent Streak: \033[m' +
 				results[i]['currentStreak'] +
@@ -182,7 +189,7 @@ function logHabitData (results) {
 	return;
 }
 
-// U
+// Update-specific functions
 
 function addToArray (data, arr, iArr) {
 	for (let i = 0; i < data.length; i++) {
@@ -194,18 +201,15 @@ function addToArray (data, arr, iArr) {
 
 async function openHabitEditor (habit) {
 	clearConsoleAndScrollBuffer();
-	console.log('\033[0;92m%s\n', questions[2]);
+	console.log('\033[0;92m%s\n', questions[3]);
 	let results = await Habit.find({ name: `${habit}` });
 
-	console.log('\033[34mHabit: \033[m' + results[0]['name']);
-	console.log('\033[33mStart Date: \033[m' + results[0]['startDate']);
-	console.log('\033[35mCurrent Streak: \033[m' + results[0]['currentStreak']);
+	logHabitData(results);
 
 	let editField = rl.keyInSelect(
 		['Edit Habit', 'Edit Start Date', 'Edit Current Streak'],
 		''
 	);
-	console.log(editField);
 
 	switch (editField) {
 		case -1:
@@ -224,7 +228,7 @@ async function openHabitEditor (habit) {
 
 async function habitNameChanger (data) {
 	clearConsoleAndScrollBuffer();
-	console.log('\033[0;92m' + questions[2] + '\n');
+	console.log('\033[0;92m' + questions[3] + '\n');
 
 	let escapedQuery =
 		'\033[34mHabit\033[m ' +
@@ -233,26 +237,38 @@ async function habitNameChanger (data) {
 		'\033[m): ';
 	let editedHabit = rl.question(escapedQuery);
 
-	await Habit.findOneAndUpdate(
+	return await Habit.findOneAndUpdate(
 		{ name: data[0]['name'] },
 		{ name: editedHabit }
-	);
-
-	console.log('Habit name edited!');
-	setTimeout(() => {
-		return returnToEdit();
-	}, 1000);
+	).then(() => {
+		console.log('Success! Press \u001b[1;4mspacebar\033[m to exit.');
+		return spacebarMainMenu();
+	});
 }
 
 async function habitDateChanger (data) {
 	clearConsoleAndScrollBuffer();
-	console.log('\033[0;92m' + questions[2] + '\n');
+	console.log('\033[0;92m' + questions[3] + '\n');
 	console.log('\033[34mHabit: \033[m' + data[0]['name']);
 
 	let editedHabit = rl.question('\033[33mStart Date (MM/DD/YYYY): \033[m');
 
 	if (validateDate(editedHabit)) {
-		let newStartDate = parseDate(editedHabit);
+		let newStartDate = customDate(editedHabit);
+		await Habit.findOneAndUpdate(
+			{ name: data[0]['name'] },
+			{
+				$set: {
+					startDate: newStartDate,
+					daysSinceStart: calculateDaysSinceStart(
+						new Date(editedHabit)
+					)
+				}
+			}
+		).then(() => {
+			console.log('Success! Press \u001b[1;4mspacebar\033[m to exit.');
+			return spacebarMainMenu();
+		});
 	}
 	else {
 		console.log('\033[91mInvalid format. Try again.\033[m');
@@ -264,15 +280,39 @@ async function habitDateChanger (data) {
 
 async function habitStreakChanger (data) {
 	clearConsoleAndScrollBuffer();
-	console.log('\033[0;92m' + questions[2] + '\n');
+	console.log('\033[0;92m' + questions[3] + '\n');
 	console.log('\033[34mHabit: \033[m' + data[0]['name']);
 	console.log('\033[33mStart Date: \033[m' + data[0]['startDate']);
+	console.log(
+		'\u001b[38;5;30mDays since start date: \033[m' +
+			data[0]['daysSinceStart']
+	);
 
 	let editedHabit = parseInt(rl.question('\033[35mCurrent Streak: \033[m'));
 	let validateChecker = validateStreak(editedHabit, data[0]['startDate']);
 
-	if (validateStreak(editedHabit)) {
-		// TODO
+	if (validateChecker) {
+		await Habit.findOneAndUpdate(
+			{ name: data[0]['name'] },
+			{
+				$set: {
+					currentStreak: editedHabit
+				}
+			}
+		).then(() => {
+			console.log('Success! Press \u001b[1;4mspacebar\033[m to exit.');
+			return spacebarMainMenu();
+		});
+	}
+	else {
+		console.log(
+			'\033[91mStreak must be shorter than ' +
+				`${data[0]['daysSinceStart']}.` +
+				' Try again.\033[m'
+		);
+		setTimeout(() => {
+			return habitStreakChanger(data);
+		}, 2000);
 	}
 }
 
@@ -287,20 +327,61 @@ function validateDate (testDate) {
 }
 
 function validateStreak (testStreak, originDate) {
-	// const days = originDate.get
 	const streakRegex = /^[1-9]\d*$/;
 	let isSyntaticStreak = streakRegex.test(testStreak);
 
-	if (isSyntaticStreak) {
+	let maxDays = calculateDaysSinceStart(canonizeDate(originDate));
+
+	if (isSyntaticStreak && testStreak <= maxDays) {
+		return true;
+	}
+	return false;
+}
+
+function customDate (enteredDate) {
+	let customDate = new Date(enteredDate);
+	let year = customDate.getFullYear();
+	let month = months[customDate.getMonth()];
+	let day = customDate.getDate();
+	return `${month} ${day}, ${year}`;
+}
+
+function canonizeDate (customDate) {
+	let reverseParseRegex = /^([a-zA-Z]+)\s([1-9]|1[0-9]|2[0-9]|3[0-1]),\s(19\d{2}|20\d{2})$/;
+	let arr = reverseParseRegex.exec(customDate);
+
+	let canonizedDate = new Date(
+		parseInt(arr[3]),
+		parseInt(Object.keys(months)[Object.values(months).indexOf(arr[1])]),
+		parseInt(arr[2])
+	);
+	return canonizedDate;
+}
+
+async function dailyIncrement () {
+	let reverseParseRegex = /^([a-zA-Z]+)\s([1-9]|1[0-9]|2[0-9]|3[0-1]),\s(19\d{2}|20\d{2})$/;
+
+	let results = await Habit.find({});
+	for (habit of results) {
+		let canonizedDate = canonizeDate(habit['startDate']);
+		let configuredDate = calculateDaysSinceStart(canonizedDate);
+
+		await Habit.updateOne(
+			{},
+			{
+				$set: {
+					daysSinceStart: configuredDate
+				}
+			}
+		);
 	}
 }
 
-function parseDate (enteredDate) {
-	let parsedDate = new Date(enteredDate);
-	let year = parsedDate.getFullYear();
-	let month = months[parsedDate.getMonth()];
-	let day = parsedDate.getDate();
-	return `${month} ${day}, ${year}`;
+function calculateDaysSinceStart (startDate) {
+	const now = Date.now(); // current date
+	const difference = now - startDate;
+	const msPerDay = 24 * 60 * 60 * 1000;
+	return Math.floor(difference / msPerDay);
 }
 
 // ...
@@ -328,6 +409,7 @@ function clearConsoleAndScrollBuffer () {
 	console.clear();
 }
 
-// Invoke
+// Start the application.
 
+dailyIncrement();
 greet();
