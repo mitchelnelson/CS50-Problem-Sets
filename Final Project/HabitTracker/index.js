@@ -55,7 +55,7 @@ const underliner =
 	'\033[1;4;93mType a selection from below to get started:\033[m';
 
 // Greeting prompt
-qPrompt = `${underliner}\n
+const qPrompt = `${underliner}\n
 1. ${questions[0]}
 2. ${questions[1]}
 3. ${questions[2]}
@@ -66,6 +66,7 @@ q. Exit app.\n`;
 
 function greet () {
 	clearConsoleAndScrollBuffer();
+
 	let answer = rl.keyIn(qPrompt, { limit: ['1', '2', '3', '4', 'q'] });
 
 	switch (answer) {
@@ -111,8 +112,12 @@ async function createHabits (option) {
 			currentStreak: 0
 		});
 		await newHabit.save().then(() => {
-			stdout.write(`Habit added!`);
-			return spacebarMainMenu();
+			stdout.write(
+				'\033[1;31mHabit added!\033[m (Returning to main menu)'
+			);
+			setTimeout(() => {
+				return greet();
+			}, 2500);
 		});
 	}
 	else return greet();
@@ -120,8 +125,7 @@ async function createHabits (option) {
 
 async function readHabits (option) {
 	displayAnswer(option);
-	stdout.write(' (Hit \u001b[1;4mspacebar\033[m to go back)\n');
-
+	console.log(' (Hit \u001b[1;4mspacebar\033[m to go back)');
 	let results = await Habit.find();
 
 	logHabitData(results);
@@ -166,27 +170,41 @@ async function updateHabits (option) {
 	if (confirm === ' ') return greet();
 }
 
-async function deleteHabits () {
-	// TODO
-}
-
 // Read-specific functions
 
-function logHabitData (results) {
-	for (let i = 0; i < results.length; i++) {
-		console.log('\033[34mHabit: \033[m' + results[i]['name']);
-		console.log('\033[33mStart Date: \033[m' + results[i]['startDate']);
+function logHabitData (data) {
+	for (let i = 0; i < data.length; i++) {
+		console.log('\033[34mHabit: \033[m' + data[i]['name']);
 		console.log(
-			'\u001b[38;5;30mDays Since Start Date: \033[m' +
-				results[i]['daysSinceStart']
+			'\033[33mStart Date: \033[m' +
+				`${data[i]['startDate']} (${data[i][
+					'daysSinceStart'
+				]} days ago)`
 		);
 		console.log(
-			'\033[35mCurrent Streak: \033[m' +
-				results[i]['currentStreak'] +
-				'\n'
+			'\033[35mCurrent Streak: \033[m' + data[i]['currentStreak'] + '\n'
 		);
 	}
 	return;
+}
+
+function logEditHabitData (promptQty, results, initialVal) {
+	let editPrompts = [
+		'\033[0;92m' + questions[3] + '\n',
+		'\033[34mHabit: \033[m' + results[0]['name'],
+		'\033[33mStart Date: \033[m' +
+			`${results[0]['startDate']} (${results[0][
+				'daysSinceStart'
+			]} days ago)`,
+		'\033[35mCurrent Streak: \033[m' + results[0]['currentStreak'] + '\n'
+	];
+
+	if (promptQty === 0) {
+		return;
+	}
+
+	console.log(editPrompts[initialVal]);
+	logEditHabitData(promptQty - 1, results, initialVal + 1);
 }
 
 // Update-specific functions
@@ -202,12 +220,17 @@ function addToArray (data, arr, iArr) {
 async function openHabitEditor (habit) {
 	clearConsoleAndScrollBuffer();
 	console.log('\033[0;92m%s\n', questions[3]);
-	let results = await Habit.find({ name: `${habit}` });
+	let nameResults = await Habit.find({ name: `${habit}` });
 
-	logHabitData(results);
+	logHabitData(nameResults);
 
 	let editField = rl.keyInSelect(
-		['Edit Habit', 'Edit Start Date', 'Edit Current Streak'],
+		[
+			'Edit Habit',
+			'Edit Start Date',
+			'Edit Current Streak',
+			'Delete Habit'
+		],
 		''
 	);
 
@@ -215,20 +238,23 @@ async function openHabitEditor (habit) {
 		case -1:
 			return returnToEdit();
 		case 0:
-			habitNameChanger(results);
+			habitNameChanger(nameResults);
 			break;
 		case 1:
-			habitDateChanger(results);
+			habitDateChanger(nameResults);
 			break;
 		case 2:
-			habitStreakChanger(results);
+			habitStreakChanger(nameResults);
+			break;
+		case 3:
+			habitDestroyer(nameResults);
 			break;
 	}
 }
 
 async function habitNameChanger (data) {
 	clearConsoleAndScrollBuffer();
-	console.log('\033[0;92m' + questions[3] + '\n');
+	logEditHabitData(1, data, 0);
 
 	let escapedQuery =
 		'\033[34mHabit\033[m ' +
@@ -241,15 +267,13 @@ async function habitNameChanger (data) {
 		{ name: data[0]['name'] },
 		{ name: editedHabit }
 	).then(() => {
-		console.log('Success! Press \u001b[1;4mspacebar\033[m to exit.');
-		return spacebarMainMenu();
+		success('Habit successfully updated!');
 	});
 }
 
 async function habitDateChanger (data) {
 	clearConsoleAndScrollBuffer();
-	console.log('\033[0;92m' + questions[3] + '\n');
-	console.log('\033[34mHabit: \033[m' + data[0]['name']);
+	logEditHabitData(2, data, 0);
 
 	let editedHabit = rl.question('\033[33mStart Date (MM/DD/YYYY): \033[m');
 
@@ -266,8 +290,7 @@ async function habitDateChanger (data) {
 				}
 			}
 		).then(() => {
-			console.log('Success! Press \u001b[1;4mspacebar\033[m to exit.');
-			return spacebarMainMenu();
+			success('Habit successfully updated!');
 		});
 	}
 	else {
@@ -280,13 +303,7 @@ async function habitDateChanger (data) {
 
 async function habitStreakChanger (data) {
 	clearConsoleAndScrollBuffer();
-	console.log('\033[0;92m' + questions[3] + '\n');
-	console.log('\033[34mHabit: \033[m' + data[0]['name']);
-	console.log('\033[33mStart Date: \033[m' + data[0]['startDate']);
-	console.log(
-		'\u001b[38;5;30mDays since start date: \033[m' +
-			data[0]['daysSinceStart']
-	);
+	logEditHabitData(3, data, 0);
 
 	let editedHabit = parseInt(rl.question('\033[35mCurrent Streak: \033[m'));
 	let validateChecker = validateStreak(editedHabit, data[0]['startDate']);
@@ -300,8 +317,7 @@ async function habitStreakChanger (data) {
 				}
 			}
 		).then(() => {
-			console.log('Success! Press \u001b[1;4mspacebar\033[m to exit.');
-			return spacebarMainMenu();
+			success('Habit successfully updated!');
 		});
 	}
 	else {
@@ -313,6 +329,25 @@ async function habitStreakChanger (data) {
 		setTimeout(() => {
 			return habitStreakChanger(data);
 		}, 2000);
+	}
+}
+
+async function habitDestroyer (data) {
+	clearConsoleAndScrollBuffer();
+	logEditHabitData(4, data, 0);
+
+	let yesNo = rl.keyIn(
+		'\033[91mAre you sure you want to delete this habit?\033[m (y/n)\n',
+		{ limit: ['y', 'Y', 'n', 'N'], hideEchoBack: true, mask: '' }
+	);
+
+	if (yesNo === 'y' || yesNo === 'Y') {
+		await Habit.deleteOne({ name: data[0]['name'] }).then(() => {
+			success('Habit successfully deleted!');
+		});
+	}
+	else {
+		returnToEdit();
 	}
 }
 
@@ -358,25 +393,6 @@ function canonizeDate (customDate) {
 	return canonizedDate;
 }
 
-async function dailyIncrement () {
-	let reverseParseRegex = /^([a-zA-Z]+)\s([1-9]|1[0-9]|2[0-9]|3[0-1]),\s(19\d{2}|20\d{2})$/;
-
-	let results = await Habit.find({});
-	for (habit of results) {
-		let canonizedDate = canonizeDate(habit['startDate']);
-		let configuredDate = calculateDaysSinceStart(canonizedDate);
-
-		await Habit.updateOne(
-			{},
-			{
-				$set: {
-					daysSinceStart: configuredDate
-				}
-			}
-		);
-	}
-}
-
 function calculateDaysSinceStart (startDate) {
 	const now = Date.now(); // current date
 	const difference = now - startDate;
@@ -386,6 +402,23 @@ function calculateDaysSinceStart (startDate) {
 
 // ...
 
+async function dailyIncrement () {
+	let results = await Habit.find();
+	for (habit of results) {
+		let canonizedDate = canonizeDate(habit['startDate']);
+		let configuredDate = calculateDaysSinceStart(canonizedDate);
+
+		await Habit.updateOne(
+			{ name: habit['name'] },
+			{
+				$set: {
+					daysSinceStart: configuredDate
+				}
+			}
+		);
+	}
+}
+
 function displayAnswer (a) {
 	stdout.write('\033[0;92m' + questions[a - 1] + '\033[m');
 }
@@ -393,6 +426,14 @@ function displayAnswer (a) {
 function spacebarMainMenu () {
 	let mainMenu = rl.keyIn('', { limit: ' ' });
 	if (mainMenu) return greet();
+}
+
+function success (type) {
+	console.log(
+		'\033[1;31m%s\033[m Press \u001b[1;4mspacebar\033[m to exit.',
+		type
+	);
+	return spacebarMainMenu();
 }
 
 function goodbye () {
