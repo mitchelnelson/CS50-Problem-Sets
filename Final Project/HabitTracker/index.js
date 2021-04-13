@@ -1,15 +1,10 @@
 // Libraries
-const stdin = process.stdin;
-const stdout = process.stdout;
-const stderr = process.stderr;
-
 const rl = require('readline-sync');
-
-const keypress = require('keypress');
-keypress(stdin);
-
-const { Habit } = require('./model');
 const mongoose = require('mongoose');
+const CronJob = require('cron').CronJob;
+
+// Models
+const { Habit } = require('./model');
 
 // Connect to local mongoDB database
 mongoose.connect('mongodb://localhost:27017/HabitTracker', {
@@ -52,7 +47,7 @@ const questions = [
 ];
 
 const underliner =
-	'\033[1;4;93mType a selection from below to get started:\033[m';
+	'\033[1;4;93mPress a corresponding key from below to get started:\033[m';
 
 // Greeting prompt
 const qPrompt = `${underliner}\n
@@ -60,9 +55,9 @@ const qPrompt = `${underliner}\n
 2. ${questions[1]}
 3. ${questions[2]}
 4. ${questions[3]}
-q. Exit app.\n`;
+q. Exit app.\n\n`;
 
-// Prompt user to make a decision:
+// MAIN FUNCTION
 
 function greet () {
 	clearConsoleAndScrollBuffer();
@@ -72,7 +67,7 @@ function greet () {
 	switch (answer) {
 		case '1':
 			clearConsoleAndScrollBuffer();
-			return greet();
+			return checkIn();
 		case '2':
 			clearConsoleAndScrollBuffer();
 			return createHabits(answer);
@@ -88,7 +83,71 @@ function greet () {
 	}
 }
 
-// MAIN FUNCTIONS
+// CHECK IN
+
+async function checkIn () {
+	displayAnswer(1);
+
+	let array = [];
+	let results = await Habit.find({});
+	await addToArray(results, array, [], true);
+
+	console.log('\n\u001b[1mMake a selection.\033[m');
+	let chosenHabit = rl.keyInSelect(array, '', {
+		hideEchoBack: true,
+		mask: ''
+	});
+
+	if (chosenHabit === array.indexOf('CANCEL')) {
+		return greet();
+	}
+	else if (chosenHabit === array.indexOf('Toggle All')) {
+		return ToggleAll(results);
+	}
+	else {
+		return habitToggle(results, chosenHabit);
+	}
+	// failsafe
+	return spacebarMainMenu();
+}
+
+async function habitToggle (data, specificHabit) {
+	if (data[specificHabit]['checkedInToday'] === false) {
+		await Habit.findOneAndUpdate(
+			{ name: data[specificHabit]['name'] },
+			{ $set: { checkedInToday: true } }
+		);
+	}
+	else {
+		await Habit.findOneAndUpdate(
+			{ name: data[specificHabit]['name'] },
+			{ $set: { checkedInToday: false } }
+		);
+	}
+	clearConsoleAndScrollBuffer();
+	return checkIn();
+}
+
+async function ToggleAll (data) {
+	for (let i = 0; i < data.length; i++) {
+		if (data[i]['checkedInToday'] === false) {
+			await Habit.findOneAndUpdate(
+				{ name: data[i]['name'] },
+				{ checkedInToday: true }
+			);
+		}
+		else {
+			await Habit.findOneAndUpdate(
+				{ name: data[i]['name'] },
+				{ checkedInToday: false }
+			);
+		}
+	}
+	clearConsoleAndScrollBuffer();
+	return checkIn();
+}
+
+// CRU(D)
 
 async function createHabits (option) {
 	displayAnswer(option);
@@ -109,10 +168,11 @@ async function createHabits (option) {
 			name: entry,
 			startDate: customDate(Date.now()),
 			daysSinceStart: 0,
-			currentStreak: 0
+			currentStreak: 0,
+			checkedInToday: false
 		});
 		await newHabit.save().then(() => {
-			stdout.write(
+			process.stdout.write(
 				'\033[1;31mHabit added!\033[m (Returning to main menu)'
 			);
 			setTimeout(() => {
@@ -135,39 +195,26 @@ async function readHabits (option) {
 async function updateHabits (option) {
 	displayAnswer(option);
 
-	let confirm = rl.keyIn(
-		' (Press \u001b[1me\033[m to edit a habit, or \u001b[1;4mspacebar\033[m to go back.)',
-		{
-			defaultInput: '',
-			limit: ['e', 'E', ' '],
-			hideEchoBack: true,
-			mask: ''
-		}
-	);
+	const habitArray = [];
+	const indexArray = [];
+	clearConsoleAndScrollBuffer();
+	displayAnswer(4);
+	console.log('');
+	let data = await Habit.find();
+	addToArray(data, habitArray, indexArray, false);
 
-	if (confirm === 'e' || confirm === 'E') {
-		const habitArray = [];
-		const indexArray = [];
-		clearConsoleAndScrollBuffer();
-		displayAnswer(4);
-		console.log('');
-		let data = await Habit.find();
-		addToArray(data, habitArray, indexArray);
+	console.log('\u001b[1mWhich habit do you want to edit?\033[m');
+	let chosenHabit = rl.keyInSelect(habitArray, '', {
+		hideEchoBack: true,
+		mask: ''
+	});
 
-		console.log('\u001b[1mWhich habit?\033[m');
-		let chosenHabit = rl.keyInSelect(habitArray, '', {
-			hideEchoBack: true,
-			mask: ''
-		});
-
-		if (chosenHabit === -1) {
-			return greet();
-		}
-		else {
-			return openHabitEditor(habitArray[chosenHabit]);
-		}
+	if (chosenHabit === -1) {
+		return greet();
 	}
-	if (confirm === ' ') return greet();
+	else {
+		return openHabitEditor(habitArray[chosenHabit]);
+	}
 }
 
 // Read-specific functions
@@ -181,6 +228,7 @@ function logHabitData (data) {
 					'daysSinceStart'
 				]} days ago)`
 		);
+		console.log('\033[36mChecked In?: \033[m' + data[i]['checkedInToday']);
 		console.log(
 			'\033[35mCurrent Streak: \033[m' + data[i]['currentStreak'] + '\n'
 		);
@@ -209,12 +257,26 @@ function logEditHabitData (promptQty, results, initialVal) {
 
 // Update-specific functions
 
-function addToArray (data, arr, iArr) {
+function addToArray (data, arr, iArr, isCheckIn) {
+	let isEditArray = false;
+
 	for (let i = 0; i < data.length; i++) {
-		arr.push(data[i]['name']);
+		if (isCheckIn && data[i]['checkedInToday'] === false) {
+			arr.push(`${data[i]['name']} ☐`);
+		}
+		else if (isCheckIn && data[i]['checkedInToday'] === true) {
+			arr.push(`${data[i]['name']} ☑`);
+		}
+		else {
+			arr.push(data[i]['name']);
+			isEditArray = true;
+		}
 		iArr.push(i + 1);
 	}
-	return;
+	if (isCheckIn) {
+		return arr.push('Toggle All');
+	}
+	return arr;
 }
 
 async function openHabitEditor (habit) {
@@ -402,25 +464,8 @@ function calculateDaysSinceStart (startDate) {
 
 // ...
 
-async function dailyIncrement () {
-	let results = await Habit.find();
-	for (habit of results) {
-		let canonizedDate = canonizeDate(habit['startDate']);
-		let configuredDate = calculateDaysSinceStart(canonizedDate);
-
-		await Habit.updateOne(
-			{ name: habit['name'] },
-			{
-				$set: {
-					daysSinceStart: configuredDate
-				}
-			}
-		);
-	}
-}
-
 function displayAnswer (a) {
-	stdout.write('\033[0;92m' + questions[a - 1] + '\033[m');
+	process.stdout.write('\033[0;92m' + questions[a - 1] + '\033[m');
 }
 
 function spacebarMainMenu () {
@@ -439,7 +484,7 @@ function success (type) {
 function goodbye () {
 	console.clear();
 	console.log(qPrompt);
-	stdout.write('Goodbye!');
+	process.stdout.write('Goodbye!');
 	setTimeout(() => {
 		return process.exit();
 	}, 1000);
@@ -450,7 +495,32 @@ function clearConsoleAndScrollBuffer () {
 	console.clear();
 }
 
-// Start the application.
+async function dailyIncrement () {
+	let results = await Habit.find();
+	for (habit of results) {
+		let canonizedDate = canonizeDate(habit['startDate']);
+		let configuredDate = calculateDaysSinceStart(canonizedDate);
 
-dailyIncrement();
+		await Habit.updateOne(
+			{ name: habit['name'] },
+			{
+				$set: {
+					daysSinceStart: configuredDate,
+					checkedInToday: false
+				}
+			}
+		);
+	}
+}
+
+const job = new CronJob(
+	'0 0 * * * *',
+	dailyIncrement(),
+	null,
+	true,
+	'America/Edmonton'
+);
+job.start();
+
+// Start the application.
 greet();

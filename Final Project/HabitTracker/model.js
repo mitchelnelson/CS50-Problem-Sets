@@ -6,7 +6,8 @@ const habitSchema = new Schema({
 	name: String,
 	startDate: String,
 	daysSinceStart: Number,
-	currentStreak: Number
+	currentStreak: Number,
+	checkedInToday: Boolean
 });
 
 // Define Model
