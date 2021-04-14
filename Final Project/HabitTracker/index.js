@@ -540,9 +540,9 @@ async function dailyIncrement () {
 		let updatedAtYear = habit['updatedAt'].getFullYear();
 
 		if (
-			nowDay > updatedAtDay &&
-			nowMonth > updatedAtMonth &&
-			nowYear >> updatedAtYear
+			nowDay > updatedAtDay ||
+			nowMonth > updatedAtMonth ||
+			nowYear > updatedAtYear
 		) {
 			await Habit.updateOne(
 				{ name: habit['name'] },
