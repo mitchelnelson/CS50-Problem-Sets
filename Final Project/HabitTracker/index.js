@@ -1,10 +1,9 @@
 // Libraries
 const rl = require('readline-sync');
 const mongoose = require('mongoose');
-const CronJob = require('cron').CronJob;
 
 // Models
-const { Habit } = require('./model');
+const { Habit, Toggle } = require('./model');
 
 // Connect to local mongoDB database
 mongoose.connect('mongodb://localhost:27017/HabitTracker', {
@@ -24,6 +23,7 @@ db.once('open', function () {
 //////////////////////////////////////////////////////////////////////////////////
 
 // Variable declarations
+
 const months = {
 	0: 'January',
 	1: 'February',
@@ -47,9 +47,8 @@ const questions = [
 ];
 
 const underliner =
-	'\033[1;4;93mPress a corresponding key from below to get started:\033[m';
+	'\u001b[38;5;28;1;4mPress a corresponding key from below to get started:\033[m';
 
-// Greeting prompt
 const qPrompt = `${underliner}\n
 1. ${questions[0]}
 2. ${questions[1]}
@@ -57,9 +56,10 @@ const qPrompt = `${underliner}\n
 4. ${questions[3]}
 q. Exit app.\n\n`;
 
-// MAIN FUNCTION
+// Main function
 
 function greet () {
+	dailyIncrement();
 	clearConsoleAndScrollBuffer();
 
 	let answer = rl.keyIn(qPrompt, { limit: ['1', '2', '3', '4', 'q'] });
@@ -83,19 +83,20 @@ function greet () {
 	}
 }
 
-// CHECK IN
+// Check-in functions
 
 async function checkIn () {
 	displayAnswer(1);
+	console.log(' (Select an option from below)');
 
 	let array = [];
 	let results = await Habit.find({});
-	await addToArray(results, array, [], true);
+	addToArray(results, array, [], true);
 
-	console.log('\n\u001b[1mMake a selection.\033[m');
 	let chosenHabit = rl.keyInSelect(array, '', {
 		hideEchoBack: true,
-		mask: ''
+		mask: '',
+		cancel: '\u001b[1mGo Back to Menu.\033[m'
 	});
 
 	if (chosenHabit === array.indexOf('CANCEL')) {
@@ -105,44 +106,55 @@ async function checkIn () {
 		return ToggleAll(results);
 	}
 	else {
-		return habitToggle(results, chosenHabit);
+		return habitToggle(results, chosenHabit, true);
 	}
-	// failsafe
-	return spacebarMainMenu();
 }
 
-async function habitToggle (data, specificHabit) {
+async function habitToggle (data, specificHabit, isSpecific) {
 	if (data[specificHabit]['checkedInToday'] === false) {
 		await Habit.findOneAndUpdate(
 			{ name: data[specificHabit]['name'] },
-			{ $set: { checkedInToday: true } }
+			{
+				$set: {
+					checkedInToday: true
+				},
+				$inc: { currentStreak: 1 }
+			}
 		);
 	}
 	else {
 		await Habit.findOneAndUpdate(
 			{ name: data[specificHabit]['name'] },
-			{ $set: { checkedInToday: false } }
+			{
+				$set: {
+					checkedInToday: false
+				},
+				$inc: { currentStreak: -1 }
+			}
 		);
 	}
-	clearConsoleAndScrollBuffer();
-	return checkIn();
+
+	if (isSpecific) {
+		clearConsoleAndScrollBuffer();
+		return checkIn();
+	}
 }
 
 async function ToggleAll (data) {
-	for (let i = 0; i < data.length; i++) {
-		if (data[i]['checkedInToday'] === false) {
-			await Habit.findOneAndUpdate(
-				{ name: data[i]['name'] },
-				{ checkedInToday: true }
-			);
-		}
-		else {
-			await Habit.findOneAndUpdate(
-				{ name: data[i]['name'] },
-				{ checkedInToday: false }
-			);
-		}
+	let result = await grabToggleData();
+	if (result === false) {
+		await Habit.updateMany({}, { $set: { checkedInToday: true } });
+		await Toggle.updateOne({}, { toggled: true });
 	}
+	else {
+		await Habit.updateMany({}, { $set: { checkedInToday: false } });
+		await Toggle.updateOne({}, { toggled: false });
+	}
+
+	for (i = 0; i < data.length; i++) {
+		habitToggle(data, i, false);
+	}
+
 	clearConsoleAndScrollBuffer();
 	return checkIn();
 }
@@ -152,17 +164,14 @@ async function ToggleAll (data) {
 async function createHabits (option) {
 	displayAnswer(option);
 
-	let confirm = rl.keyIn(
-		' (Press \u001b[1my\033[m to create a habit, or \u001b[1;4mspacebar\033[m to go back.)\n',
-		{
-			defaultInput: '',
-			limit: ['y', 'Y', ' '],
-			hideEchoBack: true,
-			mask: ''
-		}
-	);
+	console.log(' (Select an option from below)');
+	let confirm = rl.keyInSelect(['Create Habit'], '', {
+		hideEchoBack: true,
+		mask: '',
+		cancel: '\u001b[1mGo Back to Menu.\033[m'
+	});
 
-	if (confirm === 'y' || confirm === 'Y') {
+	if (confirm === 0) {
 		let entry = rl.question('Enter habit: ');
 		const newHabit = new Habit({
 			name: entry,
@@ -194,19 +203,18 @@ async function readHabits (option) {
 
 async function updateHabits (option) {
 	displayAnswer(option);
+	console.log(' (Select a habit from below to edit)');
 
 	const habitArray = [];
 	const indexArray = [];
-	clearConsoleAndScrollBuffer();
-	displayAnswer(4);
-	console.log('');
+
 	let data = await Habit.find();
 	addToArray(data, habitArray, indexArray, false);
 
-	console.log('\u001b[1mWhich habit do you want to edit?\033[m');
 	let chosenHabit = rl.keyInSelect(habitArray, '', {
 		hideEchoBack: true,
-		mask: ''
+		mask: '',
+		cancel: '\u001b[1mGo Back to Menu.\033[m'
 	});
 
 	if (chosenHabit === -1) {
@@ -221,17 +229,40 @@ async function updateHabits (option) {
 
 function logHabitData (data) {
 	for (let i = 0; i < data.length; i++) {
-		console.log('\033[34mHabit: \033[m' + data[i]['name']);
+		console.log('\n\033[38;5;184m✏️  Habit: \033[m' + data[i]['name']);
+
 		console.log(
-			'\033[33mStart Date: \033[m' +
-				`${data[i]['startDate']} (${data[i][
-					'daysSinceStart'
-				]} days ago)`
+			'\033[38;5;25m✅ Checked In Today?: \033[m' +
+				data[i]['checkedInToday']
 		);
-		console.log('\033[36mChecked In?: \033[m' + data[i]['checkedInToday']);
-		console.log(
-			'\033[35mCurrent Streak: \033[m' + data[i]['currentStreak'] + '\n'
-		);
+		if (data[i]['daysSinceStart'] === 0) {
+			console.log(
+				'\033[38;5;197m📅 Start Date: \033[m' +
+					`${data[i]['startDate']} (today)`
+			);
+		}
+		if (data[i]['daysSinceStart'] !== 0) {
+			console.log(
+				'\033[38;5;197m📅 Start Date: \033[m' +
+					`${data[i]['startDate']} (${data[i][
+						'daysSinceStart'
+					]} days ago)`
+			);
+		}
+		if (data[i]['currentStreak'] === 1) {
+			console.log(
+				'\033[38;5;166m🔥 Current Streak: \033[m' +
+					data[i]['currentStreak'] +
+					' day'
+			);
+		}
+		if (data[i]['currentStreak'] !== 1) {
+			console.log(
+				'\033[38;5;166m🔥 Current Streak: \033[m' +
+					data[i]['currentStreak'] +
+					' days'
+			);
+		}
 	}
 	return;
 }
@@ -255,11 +286,13 @@ function logEditHabitData (promptQty, results, initialVal) {
 	logEditHabitData(promptQty - 1, results, initialVal + 1);
 }
 
+function displayAnswer (a) {
+	process.stdout.write('\u001b[38;5;28;1;4m' + questions[a - 1] + '\033[m');
+}
+
 // Update-specific functions
 
 function addToArray (data, arr, iArr, isCheckIn) {
-	let isEditArray = false;
-
 	for (let i = 0; i < data.length; i++) {
 		if (isCheckIn && data[i]['checkedInToday'] === false) {
 			arr.push(`${data[i]['name']} ☐`);
@@ -269,7 +302,6 @@ function addToArray (data, arr, iArr, isCheckIn) {
 		}
 		else {
 			arr.push(data[i]['name']);
-			isEditArray = true;
 		}
 		iArr.push(i + 1);
 	}
@@ -424,12 +456,12 @@ function validateDate (testDate) {
 }
 
 function validateStreak (testStreak, originDate) {
-	const streakRegex = /^[1-9]\d*$/;
+	const streakRegex = /^[0-9]\d*$/;
 	let isSyntaticStreak = streakRegex.test(testStreak);
 
 	let maxDays = calculateDaysSinceStart(canonizeDate(originDate));
 
-	if (isSyntaticStreak && testStreak <= maxDays) {
+	if (isSyntaticStreak && testStreak <= maxDays + 1) {
 		return true;
 	}
 	return false;
@@ -462,11 +494,7 @@ function calculateDaysSinceStart (startDate) {
 	return Math.floor(difference / msPerDay);
 }
 
-// ...
-
-function displayAnswer (a) {
-	process.stdout.write('\033[0;92m' + questions[a - 1] + '\033[m');
-}
+// Accessory Functions
 
 function spacebarMainMenu () {
 	let mainMenu = rl.keyIn('', { limit: ' ' });
@@ -496,31 +524,44 @@ function clearConsoleAndScrollBuffer () {
 }
 
 async function dailyIncrement () {
+	const now = new Date();
+
+	let nowDay = now.getDate();
+	let nowMonth = now.getMonth();
+	let nowYear = now.getFullYear();
+
 	let results = await Habit.find();
 	for (habit of results) {
 		let canonizedDate = canonizeDate(habit['startDate']);
 		let configuredDate = calculateDaysSinceStart(canonizedDate);
 
-		await Habit.updateOne(
-			{ name: habit['name'] },
-			{
-				$set: {
-					daysSinceStart: configuredDate,
-					checkedInToday: false
+		let updatedAtDay = habit['updatedAt'].getDate();
+		let updatedAtMonth = habit['updatedAt'].getMonth();
+		let updatedAtYear = habit['updatedAt'].getFullYear();
+
+		if (
+			nowDay > updatedAtDay &&
+			nowMonth > updatedAtMonth &&
+			nowYear >> updatedAtYear
+		) {
+			await Habit.updateOne(
+				{ name: habit['name'] },
+				{
+					$set: {
+						daysSinceStart: configuredDate,
+						checkedInToday: false
+					}
 				}
-			}
-		);
+			);
+		}
 	}
 }
 
-const job = new CronJob(
-	'0 0 * * * *',
-	dailyIncrement(),
-	null,
-	true,
-	'America/Edmonton'
-);
-job.start();
+async function grabToggleData () {
+	let data = await Toggle.find({});
+	let isToggled = data[0]['toggled'];
+	return isToggled;
+}
 
 // Start the application.
 greet();
