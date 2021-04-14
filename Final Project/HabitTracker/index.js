@@ -278,12 +278,16 @@ function logHabitData (data) {
 function logEditHabitData (promptQty, results, initialVal) {
 	let editPrompts = [
 		'\033[0;92m' + questions[3] + '\n',
-		'\033[34mHabit: \033[m' + results[0]['name'],
-		'\033[33mStart Date: \033[m' +
+		'\033[38;5;184m✏️  Habit: \033[m' + results[0]['name'],
+		'\033[38;5;25m✅ Checked In Today?: \033[m' +
+			results[0]['checkedInToday'],
+		'\033[38;5;197m📅 Start Date: \033[m' +
 			`${results[0]['startDate']} (${results[0][
 				'daysSinceStart'
 			]} days ago)`,
-		'\033[35mCurrent Streak: \033[m' + results[0]['currentStreak'] + '\n'
+		'\033[38;5;166m🔥 Current Streak: \033[m' +
+			results[0]['currentStreak'] +
+			'\n'
 	];
 
 	if (promptQty === 0) {
@@ -324,7 +328,7 @@ function addToArray (data, arr, iArr, isCheckIn) {
 // Takes user to the main 'edit' page for a SPECIFIC habit.
 async function openHabitEditor (habit) {
 	clearConsoleAndScrollBuffer();
-	console.log('\033[0;92m%s\n', questions[3]);
+	console.log('\u001b[38;5;28;1;4m%s\033[m\n', questions[3]);
 	let nameResults = await Habit.find({ name: `${habit}` });
 
 	logHabitData(nameResults);
@@ -363,7 +367,7 @@ async function habitNameChanger (data) {
 	logEditHabitData(1, data, 0);
 
 	let escapedQuery =
-		'\033[34mHabit\033[m ' +
+		'\033[38;5;184m✏️  Habit\033[m ' +
 		'(previously was: \u001b[1m' +
 		data[0]['name'] +
 		'\033[m): ';
@@ -380,9 +384,11 @@ async function habitNameChanger (data) {
 // Allows user to update the start date of the habit through database querying.
 async function habitDateChanger (data) {
 	clearConsoleAndScrollBuffer();
-	logEditHabitData(2, data, 0);
+	logEditHabitData(3, data, 0);
 
-	let editedHabit = rl.question('\033[33mStart Date (MM/DD/YYYY): \033[m');
+	let editedHabit = rl.question(
+		'\033[38;5;197m📅 Start Date (MM/DD/YYYY): \033[m'
+	);
 
 	if (validateDate(editedHabit)) {
 		let newStartDate = customDate(editedHabit);
@@ -411,9 +417,11 @@ async function habitDateChanger (data) {
 // Allows user to update the current streak of the habit through database querying.
 async function habitStreakChanger (data) {
 	clearConsoleAndScrollBuffer();
-	logEditHabitData(3, data, 0);
+	logEditHabitData(4, data, 0);
 
-	let editedHabit = parseInt(rl.question('\033[35mCurrent Streak: \033[m'));
+	let editedHabit = parseInt(
+		rl.question('\033[38;5;166m🔥 Current Streak: \033[m')
+	);
 	let validateChecker = validateStreak(editedHabit, data[0]['startDate']);
 
 	if (validateChecker) {
@@ -443,7 +451,7 @@ async function habitStreakChanger (data) {
 // Allows user to permanently delete the current habit.
 async function habitDestroyer (data) {
 	clearConsoleAndScrollBuffer();
-	logEditHabitData(4, data, 0);
+	logEditHabitData(5, data, 0);
 
 	let yesNo = rl.keyIn(
 		'\033[91mAre you sure you want to delete this habit?\033[m (y/n)\n',
