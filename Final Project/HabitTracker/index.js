@@ -85,6 +85,7 @@ function greet () {
 
 // Check-in functions
 
+// Main check-in controller
 async function checkIn () {
 	displayAnswer(1);
 	console.log(' (Select an option from below)');
@@ -110,6 +111,7 @@ async function checkIn () {
 	}
 }
 
+// Takes in a habit and updates its current streak and check-in status for the day.
 async function habitToggle (data, specificHabit, isSpecific) {
 	if (data[specificHabit]['checkedInToday'] === false) {
 		await Habit.findOneAndUpdate(
@@ -140,6 +142,7 @@ async function habitToggle (data, specificHabit, isSpecific) {
 	}
 }
 
+// Checks database to see if all habits are toggled; updates current streak/check-in as necessary.
 async function ToggleAll (data) {
 	let result = await grabToggleData();
 	if (result === false) {
@@ -161,6 +164,7 @@ async function ToggleAll (data) {
 
 // CRU(D)
 
+// Creates a new habit and saves it to database.
 async function createHabits (option) {
 	displayAnswer(option);
 
@@ -192,6 +196,7 @@ async function createHabits (option) {
 	else return greet();
 }
 
+// Queries database and logs all habits to the console.
 async function readHabits (option) {
 	displayAnswer(option);
 	console.log(' (Hit \u001b[1;4mspacebar\033[m to go back)');
@@ -201,6 +206,7 @@ async function readHabits (option) {
 	return spacebarMainMenu();
 }
 
+// Main controller for the update 'page'.
 async function updateHabits (option) {
 	displayAnswer(option);
 	console.log(' (Select a habit from below to edit)');
@@ -227,6 +233,7 @@ async function updateHabits (option) {
 
 // Read-specific functions
 
+// Takes habit data from database and logs it to console with unicode styling.
 function logHabitData (data) {
 	for (let i = 0; i < data.length; i++) {
 		console.log('\n\033[38;5;184m✏️  Habit: \033[m' + data[i]['name']);
@@ -267,6 +274,7 @@ function logHabitData (data) {
 	return;
 }
 
+// Similar to logHabitData(), a console logging function for the edit menu.
 function logEditHabitData (promptQty, results, initialVal) {
 	let editPrompts = [
 		'\033[0;92m' + questions[3] + '\n',
@@ -286,12 +294,14 @@ function logEditHabitData (promptQty, results, initialVal) {
 	logEditHabitData(promptQty - 1, results, initialVal + 1);
 }
 
+// Logs the current option selected in main to the top line of the screen when in a new menu.
 function displayAnswer (a) {
 	process.stdout.write('\u001b[38;5;28;1;4m' + questions[a - 1] + '\033[m');
 }
 
 // Update-specific functions
 
+// Takes in data from the database, and returns a new array to be used in read-functions.
 function addToArray (data, arr, iArr, isCheckIn) {
 	for (let i = 0; i < data.length; i++) {
 		if (isCheckIn && data[i]['checkedInToday'] === false) {
@@ -311,6 +321,7 @@ function addToArray (data, arr, iArr, isCheckIn) {
 	return arr;
 }
 
+// Takes user to the main 'edit' page for a SPECIFIC habit.
 async function openHabitEditor (habit) {
 	clearConsoleAndScrollBuffer();
 	console.log('\033[0;92m%s\n', questions[3]);
@@ -346,6 +357,7 @@ async function openHabitEditor (habit) {
 	}
 }
 
+// Allows user to update the name of the habit through database querying.
 async function habitNameChanger (data) {
 	clearConsoleAndScrollBuffer();
 	logEditHabitData(1, data, 0);
@@ -365,6 +377,7 @@ async function habitNameChanger (data) {
 	});
 }
 
+// Allows user to update the start date of the habit through database querying.
 async function habitDateChanger (data) {
 	clearConsoleAndScrollBuffer();
 	logEditHabitData(2, data, 0);
@@ -395,6 +408,7 @@ async function habitDateChanger (data) {
 	}
 }
 
+// Allows user to update the current streak of the habit through database querying.
 async function habitStreakChanger (data) {
 	clearConsoleAndScrollBuffer();
 	logEditHabitData(3, data, 0);
@@ -426,6 +440,7 @@ async function habitStreakChanger (data) {
 	}
 }
 
+// Allows user to permanently delete the current habit.
 async function habitDestroyer (data) {
 	clearConsoleAndScrollBuffer();
 	logEditHabitData(4, data, 0);
@@ -445,16 +460,19 @@ async function habitDestroyer (data) {
 	}
 }
 
+// Convenient function that returns user back to the main edit menu.
 function returnToEdit () {
 	clearConsoleAndScrollBuffer();
 	return updateHabits(3);
 }
 
+// Checks the data supplied by the user when updating in habitDateChanger() to determine its validity.
 function validateDate (testDate) {
 	const dateRegex = /^(0[1-9]|1[0-2])\/(0[1-9]|1\d|2\d|3[01])\/(19|20)\d{2}$/;
 	return dateRegex.test(testDate);
 }
 
+// Checks the data supplied by the user when updating in habitStreakChanger() to determine its validity.
 function validateStreak (testStreak, originDate) {
 	const streakRegex = /^[0-9]\d*$/;
 	let isSyntaticStreak = streakRegex.test(testStreak);
@@ -467,6 +485,7 @@ function validateStreak (testStreak, originDate) {
 	return false;
 }
 
+// Converts a habit's date into a more readable format.
 function customDate (enteredDate) {
 	let customDate = new Date(enteredDate);
 	let year = customDate.getFullYear();
@@ -475,6 +494,7 @@ function customDate (enteredDate) {
 	return `${month} ${day}, ${year}`;
 }
 
+// Returns a customized date into standardized format.
 function canonizeDate (customDate) {
 	let reverseParseRegex = /^([a-zA-Z]+)\s([1-9]|1[0-9]|2[0-9]|3[0-1]),\s(19\d{2}|20\d{2})$/;
 	let arr = reverseParseRegex.exec(customDate);
@@ -487,6 +507,7 @@ function canonizeDate (customDate) {
 	return canonizedDate;
 }
 
+// Determines the difference in days between the current date and the start date of a habit.
 function calculateDaysSinceStart (startDate) {
 	const now = Date.now(); // current date
 	const difference = now - startDate;
@@ -496,11 +517,13 @@ function calculateDaysSinceStart (startDate) {
 
 // Accessory Functions
 
+// Returns user to the main menu.
 function spacebarMainMenu () {
 	let mainMenu = rl.keyIn('', { limit: ' ' });
 	if (mainMenu) return greet();
 }
 
+// Logs a success message to the console to confirm for the user a task was successfully completed.
 function success (type) {
 	console.log(
 		'\033[1;31m%s\033[m Press \u001b[1;4mspacebar\033[m to exit.',
@@ -509,6 +532,7 @@ function success (type) {
 	return spacebarMainMenu();
 }
 
+// Exits the application and logs a goodbye message to the user.
 function goodbye () {
 	console.clear();
 	console.log(qPrompt);
@@ -518,11 +542,13 @@ function goodbye () {
 	}, 1000);
 }
 
+// Renders a blank console for the user and erases all scrollback data.
 function clearConsoleAndScrollBuffer () {
 	process.stdout.write('\u001b[3J\u001b[1J');
 	console.clear();
 }
 
+// Resets check-in for each habit, and updates the amount of days since starting the habit.
 async function dailyIncrement () {
 	const now = new Date();
 
@@ -557,6 +583,7 @@ async function dailyIncrement () {
 	}
 }
 
+// Queries the database to determine if all habits are currently toggled on/off.
 async function grabToggleData () {
 	let data = await Toggle.find({});
 	let isToggled = data[0]['toggled'];
